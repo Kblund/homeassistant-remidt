@@ -1,0 +1,11 @@
+{
+  "domain": "remidt",
+  "name": "Remidt",
+  "version": "0.0.1",
+  "documentation": "https://github.com/Bolme123/atb_sanntid_hassio",
+  "dependencies": [],
+  "codeowners": [
+    "@bolme123"
+  ],
+  "requirements": []
+}
