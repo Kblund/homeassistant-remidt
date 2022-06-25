@@ -22,8 +22,7 @@ from .const.const import (
     CONF_UPDATE_FREQUENCY,
     SENSOR_PREFIX,
     ATTR_LAST_UPDATE,
-    ATTR_PAPIR,
-    ATTR_RESTAVFALL,
+    ATTR_TOMMING_ETTER,
     ATTR_NESTE_TOMMING,
     API_ENDPOINT,
     CONF_ID,
@@ -46,7 +45,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     }
 )
 
-
+ 
 def setup_platform(hass, config, add_entities, discovery_info=None):
     _LOGGER.debug("Setup ReMidt sensor")
 
@@ -54,9 +53,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     address = config.get(CONF_ADDRESS).lower().strip()
     kommune = config.get(CONF_KOMMUNE).lower().strip()
     update_frequency = timedelta(minutes=(int(config.get(CONF_UPDATE_FREQUENCY))))
-
     entities = []
-
     try:
         entities.append(
             ReMidtsensor(
@@ -66,7 +63,6 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     except urllib.error.HTTPError as error:
         _LOGGER.error(error.reason)
         return False
-
     add_entities(entities)
 
 class ReMidtsensor(Entity):
@@ -77,16 +73,18 @@ class ReMidtsensor(Entity):
         self.address_ID = ''
         self.kommune = kommune
         self._datarest = []
+        self._dataplast = []
         self._datapapir = []
         self.dates = None
         self.update = Throttle(update_frequency)(self._update)
         self._name = SENSOR_PREFIX + (id_name + " " if len(id_name) > 0  else "")
-        self._icon = "mdi:bus"
+        self._icon = "mdi:delete"
         self._device_class = 'timestamp'
         self._state = None
         self._last_update = None
         self._papir = None
         self._restavfall = None
+        self._etter_neste_tomming = None
         self._neste_tomming = None
 
     def getAddressID(self):
@@ -107,7 +105,7 @@ class ReMidtsensor(Entity):
             if self.kommune in address['subTitle'].lower():
                 self.address_ID = address['id']
                 _LOGGER.debug(self.address_ID)
-        self.getDays()
+       
 
 
     def getDays(self):
@@ -120,13 +118,17 @@ class ReMidtsensor(Entity):
         r = requests.get(full_url)
         _LOGGER.debug(full_url)
         _LOGGER.debug(r.json())
+        disposalDays = []
         disposals = r.json()["disposals"]
         for day in disposals:
-            if day["fraction"] == "Restavfall":
-                self._datarest.append(day)
-            elif day["fraction"] == "Papir og plastemballasje":
-                self._datapapir.append(day)
-
+            disposalDays.append(day)
+            if len(disposalDays) > 1:
+                if disposalDays[-1]["date"] == disposalDays[-2]["date"]:
+                    bin = [disposalDays[-1]["fraction"],disposalDays[-2]["fraction"]]
+                    disposalDays.pop()
+                    newDisposalObject = " & ".join(bin)
+                    disposalDays[-1]["fraction"] = newDisposalObject
+        return disposalDays
 
     @property
     def name(self):
@@ -146,47 +148,33 @@ class ReMidtsensor(Entity):
 
 
     @property
-    def device_state_attributes(self):
+    def extra_state_attributes(self):
         return {
         ATTR_LAST_UPDATE: self._last_update,
-        ATTR_RESTAVFALL: self._restavfall,
-        ATTR_PAPIR: self._papir,
-        ATTR_NESTE_TOMMING: self._neste_tomming
+        ATTR_NESTE_TOMMING: self._neste_tomming,
+        ATTR_TOMMING_ETTER: self._etter_neste_tomming
         }
+        
 
-    def _update(self):
-        self._last_update = (datetime.now() + timedelta(hours =2)).strftime("%d-%m-%Y %H:%M")
+    
+    def Prerequisites(self):
+        self._last_update = (datetime.now()).strftime("%d-%m-%Y %H:%M")
         if self.address_ID == '':
             self.getAddressID()
-        baseline_url = (
-            API_ENDPOINT
-            )
-
+        return self.getDays()
+        
+    
+    def _update(self):
+        disposalDays = self.Prerequisites()
         now= datetime.now()
-        for k in self._datapapir[0], self._datarest[0]:
-            if (datetime.now() - datetime.strptime(k['date'][0:10], "%Y-%m-%d") ).days > 0:
-                _LOGGER.debug(self._datapapir)
-                if k in self._datapapir[0]:
-                    self._datapapir.clear()
-                elif k in self._datarest[0]:
-                    self._datarest.clear()
-                return
-                
-            disposal_date = datetime.strptime(k['date'][0:10], "%Y-%m-%d")
-            disposalDay = (disposal_date-now).days
-            disposalItem = k["fraction"]
-            if disposalItem == "Restavfall":
-                self._restavfall = disposal_date
-            else:
-                self._papir = disposal_date
-
-        if self._datapapir[0]['date'] < self._datarest[0]['date']:
-            tid = datetime.strptime(self._datapapir[0]['date'][0:10], "%Y-%m-%d")
-            disposaldays = (tid-now).days
-            self._state = self._papir
-            self._neste_tomming = 'Papir og plastemballasje'
-        else:
-            tid = datetime.strptime(self._datarest[0]['date'][0:10], "%Y-%m-%d")
-            disposaldays = (tid-now).days
-            self._state = self._restavfall
-            self._neste_tomming = 'Restavfall'
+        first = datetime.strptime(disposalDays[0]["date"][0:10]+":10","%Y-%m-%d:%H")
+        if first <= now:
+            disposalDays.pop(0)
+        next = disposalDays[0]
+        after_next = disposalDays[1]
+        disposal_date = datetime.strptime(next['date'][0:10],"%Y-%m-%d")
+        disposalDay = (disposal_date-now).days
+        disposalItem = next["fraction"]
+        self._state = next["date"][0:10]+"T10:00:00"
+        self._neste_tomming = disposalItem
+        self._etter_neste_tomming = f'{after_next["date"][0:10]}\n{after_next["fraction"]}'
