@@ -34,12 +34,11 @@ from homeassistant.const import CONF_RESOURCES
 from homeassistant.util import Throttle
 from homeassistant.helpers.entity import Entity
 
-# NSR:StopPlace:43964 = Buvika
-# NSR:StopPlace:41660 = Torget Orkanger
+
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
-        vol.Required(CONF_ADDRESS, default="Tverrvegen 6B"): cv.string,
-        vol.Required(CONF_KOMMUNE, default="Skaun"): cv.string,
+        vol.Required(CONF_ADDRESS, default=""): cv.string,
+        vol.Required(CONF_KOMMUNE, default=""): cv.string,
         vol.Required(CONF_UPDATE_FREQUENCY, default=60): cv.string,
         vol.Optional(CONF_ID, default = ""): cv.string,
     }
