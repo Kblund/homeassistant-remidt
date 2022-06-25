@@ -2,7 +2,7 @@
   "domain": "remidt",
   "name": "Remidt",
   "version": "0.0.1",
-  "documentation": "https://github.com/Bolme123/atb_sanntid_hassio",
+  "documentation": "https://github.com/Bolme123/homeassistant-remidt",
   "dependencies": [],
   "codeowners": [
     "@bolme123"
