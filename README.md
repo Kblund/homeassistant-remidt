@@ -2,7 +2,7 @@
 
 ##ReMidt Søppeltømming
 
-Laget av Bolme123
+Laget av KBlund
 
 Benytter API levert av ReMidt og Python requests for å hente tømmedager for søpla.
 ###Konfigurasjon
