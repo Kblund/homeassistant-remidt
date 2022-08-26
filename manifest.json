@@ -1,7 +1,7 @@
 {
   "domain": "remidt",
   "name": "Remidt",
-  "version": "0.0.1",
+  "version": "0.1.2",
   "documentation": "https://github.com/Bolme123/homeassistant-remidt",
   "dependencies": [],
   "codeowners": [
